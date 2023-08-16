@@ -7,7 +7,73 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const moment = require("moment");
+const notificationModel = require("../models/notification");
+const salespitchModel = require("../models/salespitch");
+const salespitchsaveModel = require("../models/salespitchsave");
+const postsave = require("../models/postsave");
+const Feedback = require("../models/feedback");
+const Support = require("../models/support");
 
+exports.deleteall = async (req, res) => {
+  try {
+     if(req.params.email){
+         var u = await UserModel.find({email: req.params.email});
+         if(u.length > 0){
+             var user = u[0]._id;
+            await UserModel.deleteMany({_id: user});
+            await FCMDB.deleteMany({user: user});
+            await notificationModel.deleteMany({sender: user});
+            await notificationModel.deleteMany({receiver: user});
+            await salespitchModel.deleteMany({userid: user});
+            await salespitchsaveModel.deleteMany({senderid: user});
+            await postsave.deleteMany({userid: user});
+            await Feedback.deleteMany({sender: user});
+            await Feedback.deleteMany({receiver: user});
+            return res.status(201).send({
+              message: "User Deleted successfully",
+              result: u
+            });
+         }else{
+            return res.status(201).send({
+              message: "User Not Found",
+            });
+         }
+     }
+     if(req.params.id){
+         var user = req.params.id;
+        await UserModel.deleteMany({_id: user});
+        await FCMDB.deleteMany({user: user});
+        await notificationModel.deleteMany({sender: user});
+        await notificationModel.deleteMany({receiver: user});
+        await salespitchModel.deleteMany({userid: user});
+        await salespitchsaveModel.deleteMany({senderid: user});
+        await postsave.deleteMany({userid: user});
+        await Feedback.deleteMany({sender: user});
+        await Feedback.deleteMany({receiver: user});
+        return res.status(201).send({
+          message: "User Deleted successfully",
+        });
+     }else{
+        // await UserModel.deleteMany({});
+        // await FCMDB.deleteMany({});
+        // await notificationModel.deleteMany({});
+        // await salespitchModel.deleteMany({});
+        // await salespitchsaveModel.deleteMany({});
+        // await postsave.deleteMany({});
+        // await Feedback.deleteMany({});
+        return res.status(201).send({
+          message: "Deleted successfully",
+        });
+     }
+  } catch (err) {
+    const request = req;
+    Helper.writeErrorLog(request, err);
+    return res.status(500).json({
+      message: "Error occurred, Please try again later",
+      error: err,
+    });
+  }
+};
 // Register
 exports.register = async (req, res) => {
   const objValidation = new niv.Validator(req.body, {
@@ -55,11 +121,25 @@ exports.register = async (req, res) => {
       username: req.body.name,
       email: req.body.email,
       password: hash,
+      email_verify: req.body.type ? 1 : 0,
       flag: 1,
       type: req.body.type ? req.body.type : 1,
       register_token: register_token,
     });
     const result = await newUser.save();
+    var results = await Support.find({sendorid: result._id});
+    var re = 0;
+    results.forEach(async e=>{
+        re++;
+    })
+    if(re == 0 && !req.body.type){
+        const new_feedback = new Support({
+          sendorid: result._id,
+          recieverid: 'admin',
+        });
+        const feedback_res = await new_feedback.save();
+    }
+
     const title = "New User Registered";
     const text = `New User Registered User Name ${req.body.name}`;
     await Helper.addNotification(title, text, 1);
@@ -126,9 +206,11 @@ exports.login = async (req, res, next) => {
         },
       },
     ]);
+
+
     if (!userResult[0]) {
       return res.status(401).send({
-        message: "Please enter valid credentials",
+        message: "Please enter valid credentials"+email,
       });
     }
     userResult = userResult[0];
@@ -221,6 +303,18 @@ exports.social = async (req, res, next) => {
 
         const newUser = new UserModel(userObj);
         const result = await newUser.save();
+        var results = await Support.find({sendorid: result._id});
+        var re = 0;
+        results.forEach(async e=>{
+            re++;
+        })
+        if(re == 0){
+            const new_feedback = new Support({
+              sendorid: result._id,
+              recieverid: 'admin',
+            });
+            const feedback_res = await new_feedback.save();
+        }
 
         // JWT token generate
         const token = jwt.sign(
@@ -566,7 +660,7 @@ exports.auth = async (req, res, next) => {
 // edit
 exports.edit = async (req, res) => {
   // id -> tanker
-  const id = req.userData._id;
+  const id = req.body._id;
 
   const { username, mobile_number, email, password } = req.body;
   try {
@@ -618,7 +712,7 @@ exports.edit = async (req, res) => {
         new: true,
       }
     );
-    if (result.profile_pic) {
+    if (result && result.profile_pic) {
       result.profile_pic = await Helper.getImageUrl(
         result.profile_pic,
         result.username
@@ -629,6 +723,7 @@ exports.edit = async (req, res) => {
       result: result,
     });
   } catch (err) {
+      console.log(err);
     return res.status(500).json({
       message: "Error occurred, Please try again later",
       error: err,
@@ -860,6 +955,8 @@ exports.logout = async (req, res) => {
     });
   }
 };
+
+
 
 exports.reset_password = async (req, res) => {
   const ObjValidation = new niv.Validator(req.body, {
