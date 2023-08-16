@@ -5,6 +5,7 @@ const CMSDB = require("../models/cms");
 const moment = require("moment");
 
 //************** GET All CMS ***********//
+//************** GET All CMS ***********//
 exports.get = async (req, res) => {
   let { limit, page } = req.query;
   if ([null, undefined, ""].includes(page)) {
