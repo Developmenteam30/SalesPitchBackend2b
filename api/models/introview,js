@@ -1,0 +1,18 @@
+const mongoose = require("mongoose");
+let aggregatePaginate = require("mongoose-aggregate-paginate-v2");
+let mongoosePaginate = require("mongoose-paginate-v2");
+
+const introviewSchema = mongoose.Schema(
+  {
+    view:{ type: Number, default: 1},
+    senderid: { type: mongoose.Schema.Types.ObjectId },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+introviewSchema.plugin(aggregatePaginate);
+introviewSchema.plugin(mongoosePaginate);
+
+module.exports = mongoose.model("Introview", introviewSchema);
