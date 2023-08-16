@@ -4,6 +4,7 @@ let mongoosePaginate = require("mongoose-paginate-v2");
 
 const salespitchSchema = mongoose.Schema(
   {
+    userid:{type: mongoose.Schema.Types.ObjectId},
     title: {
       type: String,
       required: true,
@@ -67,6 +68,10 @@ const salespitchSchema = mongoose.Schema(
     status: {
       type: Number,
       default: 1, //1=pending 2=active 3=rejected 4=delete
+    },
+    whocanwatch: {
+      type: String,
+      default: "",
     },
   },
   {
