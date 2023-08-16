@@ -3,6 +3,7 @@ const FCMDB = require("../models/fcm");
 const mongoose = require("mongoose");
 const Helper = require("../helper/index");
 const niv = require("node-input-validator");
+const postsave = require("../models/postsave");
 
 exports.add = async (req, res, next) => {
   const validator = new niv.Validator(req.body, {
@@ -15,11 +16,12 @@ exports.add = async (req, res, next) => {
       errors: validator.errors,
     });
   }
-  const { type, text } = req.body;
+  const { type, text, category } = req.body;
 
   try {
     let createObj = {};
     createObj.type = type;
+    createObj.category = category;
 
     if (type == 1) {
       createObj.text = text;
@@ -78,10 +80,11 @@ exports.update = async (req, res, next) => {
   }
 
   const id = req.params.id;
-  const { text, type } = req.body;
+  const { text, type, category } = req.body;
 
   const updateObj = {};
 
+  updateObj.category = category;
   if (type == 1 && text) {
     updateObj.text = text;
     updateObj.type = type;
@@ -139,7 +142,7 @@ exports.update = async (req, res, next) => {
 };
 
 exports.get = async (req, res) => {
-  let { page, limit, search, type } = req.query;
+  let { page, limit, search, type, user } = req.query;
 
   if ([1, "", 0, undefined, null].includes(page)) {
     page = 1;
@@ -163,6 +166,12 @@ exports.get = async (req, res) => {
   matchObj.flag = {
     $in: [1, 2],
   };
+  if(user){
+    const results = await postsave.distinct("postid", {userid: user});
+    matchObj._id = {
+        $nin: results,
+    };
+  }
 
   try {
     const postAggregate = postModel.aggregate([
@@ -182,6 +191,7 @@ exports.get = async (req, res) => {
           type: 1,
           createdAt: 1,
           flag: 1,
+          category: 1,
         },
       },
     ]);
@@ -199,6 +209,7 @@ exports.get = async (req, res) => {
     return res.status(200).json({
       message: "Posts has been retrieved ",
       result: result,
+      matchobj: matchObj
     });
   } catch (err) {
     console.log(err);
@@ -210,7 +221,7 @@ exports.get = async (req, res) => {
 };
 
 exports.appGet = async (req, res) => {
-  let { search, type } = req.query;
+  let { search, type, user, category } = req.query;
   let matchObj = {};
   if (search) {
     matchObj.title = { $regex: search, $options: "i" };
@@ -218,7 +229,29 @@ exports.appGet = async (req, res) => {
   if (type) {
     matchObj.type = Number(type);
   }
+  if (category && category != "") {
+      var cat = category.split(",");
+    // matchObj.category = { $regex: category, $options: "i" };
+    
+    if(cat && cat.length > 0){
+        f = "(?:";
+        var i = 0;
+        cat.forEach(e=>{
+            i++;
+            f += i < cat.length ? e+"|" : e+")";
+        });
+        matchObj.category = { $regex: f, $options: "i" };
+    }
+    // matchObj.category = { $regex: "(?:Mistakes|Strategies)", $options: "i" };
+  }
   matchObj.flag = 1;
+  if(user){
+    const results = await postsave.distinct("postid", {userid: user});
+    matchObj._id = {
+        $nin: results,
+    };
+  }
+
   try {
     const result = await postModel.aggregate([
       {
@@ -237,6 +270,7 @@ exports.appGet = async (req, res) => {
           type: 1,
           createdAt: 1,
           flag: 1,
+          category: 1,
         },
       },
     ]);
@@ -332,6 +366,7 @@ exports.getDetail = async (req, res) => {
           type: 1,
           createdAt: 1,
           flag: 1,
+          category: 1,
         },
       },
     ]);
