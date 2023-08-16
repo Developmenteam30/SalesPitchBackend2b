@@ -41,3 +41,5 @@ const cmsSchema = new mongoose.Schema(
 cmsSchema.plugin(aggregatePaginate);
 cmsSchema.plugin(mongoosePaginate);
 module.exports = mongoose.model("cms", cmsSchema);
+
+
